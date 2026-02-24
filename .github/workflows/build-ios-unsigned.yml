@@ -17,19 +17,19 @@ jobs:
           node-version: 18 # تأكد من استخدام إصدار Node مناسب
 
       - name: Install dependencies
-        working-directory: ./mobile_app
+        working-directory: ./
         run: npm install
 
       - name: Expo Prebuild (Generate iOS folder)
-        working-directory: ./mobile_app
+        working-directory: ./
         run: npx expo prebuild -p ios --clean
 
       - name: Install CocoaPods
-        working-directory: ./mobile_app/ios
+        working-directory: ./ios
         run: pod install
 
       - name: Build App (Unsigned)
-        working-directory: ./mobile_app/ios
+        working-directory: ./ios
         run: |
           xcodebuild -workspace HrProApp.xcworkspace \
             -scheme HrProApp \
@@ -41,7 +41,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO
 
       - name: Package Payload to IPA
-        working-directory: ./mobile_app/ios
+        working-directory: ./ios
         run: |
           mkdir -p Payload
           # نقل التطبيق المصدر (بصيغة .app) داخل مجلد Payload
@@ -53,4 +53,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: HrProApp-Unsigned-IPA
-          path: mobile_app/ios/app-unsigned.ipa
+          path: ios/app-unsigned.ipa
