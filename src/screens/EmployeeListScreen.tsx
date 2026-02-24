@@ -12,7 +12,7 @@ import {
     Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, UserPlus, Phone, Briefcase, ArrowRight, Trash2, X, Check, ChevronDown, Lock, User, Send } from 'lucide-react-native';
+import { Search, UserPlus, Phone, Briefcase, ArrowRight, Trash2, X, Check, ChevronDown, Lock, User, Send, Edit2 } from 'lucide-react-native';
 import { COLORS, SPACING, BORDER_RADIUS } from '../constants/theme';
 import api from '../services/api';
 import { getSocket } from '../services/socket';
@@ -27,6 +27,8 @@ const EmployeeListScreen = ({ navigation }: { navigation?: any }) => {
 
     // Modal States
     const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
     const [isPickerVisible, setIsPickerVisible] = useState<'dept' | 'role' | null>(null);
 
     const [newEmployee, setNewEmployee] = useState({
@@ -96,42 +98,87 @@ const EmployeeListScreen = ({ navigation }: { navigation?: any }) => {
         }
     };
 
-    const handleAddEmployee = async () => {
+    const openAddModal = () => {
+        setIsEditMode(false);
+        setEditingId(null);
+        setNewEmployee({
+            name: '',
+            phoneNumber: '',
+            role: UserRole.EMPLOYEE,
+            salary: '',
+            departmentId: departments[0]?.id || '',
+            workingHours: '8',
+            username: '',
+            password: '',
+            telegramChatId: '',
+        });
+        setIsAddModalVisible(true);
+    };
+
+    const openEditModal = (emp: any) => {
+        setIsEditMode(true);
+        setEditingId(emp.id);
+        setNewEmployee({
+            name: emp.name || '',
+            phoneNumber: (emp.phoneNumber || '').toString(),
+            role: emp.role || UserRole.EMPLOYEE,
+            salary: (emp.salary || '').toString(),
+            departmentId: emp.departmentId || departments[0]?.id || '',
+            workingHours: (emp.workingHours || '8').toString(),
+            username: emp.username || '',
+            password: '', // اتركها فارغة إذا لم يرد تغييرها
+            telegramChatId: (emp.telegramChatId || '').toString(),
+        });
+        setIsAddModalVisible(true);
+    };
+
+    const handleSaveEmployee = async () => {
         const { name, phoneNumber, salary, username, password } = newEmployee;
-        if (!name || !phoneNumber || !salary || !username || !password) {
-            Alert.alert('خطأ', 'يرجى ملء كافة الحقول الأساسية (الاسم، الهاتف، الراتب، اسم المستخدم، الباسورد)');
+
+        // التحقق من الحقول الأساسية (الباسورد مطلوب فقط في الإضافة)
+        let isBasicValid = false;
+        if (isEditMode) {
+            isBasicValid = !!(name && phoneNumber && salary && username);
+        } else {
+            isBasicValid = !!(name && phoneNumber && salary && username && password);
+        }
+
+        if (!isBasicValid) {
+            Alert.alert('خطأ', `يرجى ملء كافة الحقول الأساسية المطلوبة${!isEditMode ? ' (بما فيها الباسورد)' : ''}`);
             return;
         }
 
-        const employeeToAdd: Employee = {
-            id: Math.random().toString(36).substr(2, 9),
-            ...newEmployee,
-            salary: Number(salary),
-            workingHours: Number(newEmployee.workingHours),
-            hireDate: new Date().toISOString().split('T')[0],
-            contractExpiry: '',
-            documents: [],
-            leaveBalance: 20,
-        } as any;
-
         try {
-            await api.post('/api/employees', employeeToAdd);
-            setEmployees([employeeToAdd, ...employees]);
+            if (isEditMode && editingId) {
+                const employeeToUpdate: any = {
+                    ...newEmployee,
+                    salary: Number(salary),
+                    workingHours: Number(newEmployee.workingHours),
+                };
+                if (!password) delete employeeToUpdate.password;
+
+                await api.put(`/api/employees/${editingId}`, employeeToUpdate);
+                setEmployees(employees.map(e => e.id === editingId ? { ...e, ...employeeToUpdate } : e));
+                Alert.alert('نجاح', 'تم تعديل الموظف بنجاح');
+            } else {
+                const employeeToAdd: Employee = {
+                    id: Math.random().toString(36).substr(2, 9),
+                    ...newEmployee,
+                    salary: Number(salary),
+                    workingHours: Number(newEmployee.workingHours),
+                    hireDate: new Date().toISOString().split('T')[0],
+                    contractExpiry: '',
+                    documents: [],
+                    leaveBalance: 20,
+                } as any;
+
+                await api.post('/api/employees', employeeToAdd);
+                setEmployees([employeeToAdd, ...employees]);
+                Alert.alert('نجاح', 'تم إضافة الموظف بنجاح');
+            }
             setIsAddModalVisible(false);
-            setNewEmployee({
-                name: '',
-                phoneNumber: '',
-                role: UserRole.EMPLOYEE,
-                salary: '',
-                departmentId: departments[0]?.id || '',
-                workingHours: '8',
-                username: '',
-                password: '',
-                telegramChatId: '',
-            });
-            Alert.alert('نجاح', 'تم إضافة الموظف بنجاح');
         } catch (error) {
-            Alert.alert('خطأ', 'فشل حفظ الموظف في السيرفر');
+            Alert.alert('خطأ', 'فشل حفظ بيانات الموظف في السيرفر');
         }
     };
 
@@ -173,7 +220,7 @@ const EmployeeListScreen = ({ navigation }: { navigation?: any }) => {
                     <ArrowRight size={24} color={COLORS.text} />
                 </TouchableOpacity>
                 <Text style={styles.title}>إدارة الموظفين</Text>
-                <TouchableOpacity style={styles.addButton} onPress={() => setIsAddModalVisible(true)}>
+                <TouchableOpacity style={styles.addButton} onPress={openAddModal}>
                     <UserPlus size={24} color="#fff" />
                 </TouchableOpacity>
             </View>
@@ -212,9 +259,14 @@ const EmployeeListScreen = ({ navigation }: { navigation?: any }) => {
                                         <Text style={styles.detailText}>{item.phoneNumber}</Text>
                                     </View>
                                 </View>
-                                <TouchableOpacity onPress={() => handleDeleteEmployee(item.id, item.name)} style={styles.deleteBtn}>
-                                    <Trash2 size={20} color={COLORS.danger} />
-                                </TouchableOpacity>
+                                <View style={styles.actionsContainer}>
+                                    <TouchableOpacity onPress={() => openEditModal(item)} style={styles.actionBtn}>
+                                        <Edit2 size={18} color={COLORS.primary} />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity onPress={() => handleDeleteEmployee(item.id, item.name)} style={styles.actionBtn}>
+                                        <Trash2 size={18} color={COLORS.danger} />
+                                    </TouchableOpacity>
+                                </View>
                             </View>
                         </View>
                     )}
@@ -229,7 +281,7 @@ const EmployeeListScreen = ({ navigation }: { navigation?: any }) => {
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>إضافة موظف جديد</Text>
+                            <Text style={styles.modalTitle}>{isEditMode ? 'تعديل بيانات الموظف' : 'إضافة موظف جديد'}</Text>
                             <TouchableOpacity onPress={() => setIsAddModalVisible(false)}><X size={24} color={COLORS.text} /></TouchableOpacity>
                         </View>
 
@@ -269,7 +321,7 @@ const EmployeeListScreen = ({ navigation }: { navigation?: any }) => {
                                     </View>
                                 </View>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={styles.inputLabel}>كلمة السر</Text>
+                                    <Text style={styles.inputLabel}>كلمة السر {isEditMode ? '(اختياري)' : ''}</Text>
                                     <View style={styles.inputIconWrapper}>
                                         <Lock size={16} color={COLORS.textMuted} />
                                         <TextInput style={[styles.modalInput, { marginBottom: 0, flex: 1 }]} secureTextEntry value={newEmployee.password} onChangeText={t => setNewEmployee({ ...newEmployee, password: t })} textAlign="right" />
@@ -291,9 +343,9 @@ const EmployeeListScreen = ({ navigation }: { navigation?: any }) => {
                                 </View>
                             </View>
 
-                            <TouchableOpacity style={[styles.saveBtn, { marginTop: 20 }]} onPress={handleAddEmployee}>
+                            <TouchableOpacity style={[styles.saveBtn, { marginTop: 20 }]} onPress={handleSaveEmployee}>
                                 <Check size={20} color="#fff" />
-                                <Text style={styles.saveBtnText}>حفظ الموظف</Text>
+                                <Text style={styles.saveBtnText}>{isEditMode ? 'تحديث البيانات' : 'حفظ الموظف'}</Text>
                             </TouchableOpacity>
                         </ScrollView>
                     </View>
@@ -342,7 +394,8 @@ const styles = StyleSheet.create({
     detailsRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 6 },
     detailText: { color: COLORS.textMuted, fontSize: 12 },
     divider: { width: 1, height: 10, backgroundColor: COLORS.border, marginHorizontal: 4 },
-    deleteBtn: { padding: 10 },
+    actionsContainer: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+    actionBtn: { padding: 8, backgroundColor: COLORS.background, borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderColor: COLORS.border },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center' },

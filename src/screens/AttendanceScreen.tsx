@@ -70,18 +70,36 @@ const AttendanceScreen = ({ user, navigation }: { user?: any, navigation?: any }
     };
 
     const handleManualSubmit = async () => {
-        if (!manualEntry.userId || !manualEntry.checkIn) {
-            Alert.alert('خطأ', 'يرجى اختيار الموظف وقت الدخول');
+        if (!manualEntry.userId) {
+            Alert.alert('خطأ', 'يرجى اختيار الموظف أولاً');
             return;
+        }
+
+        const now = new Date();
+        const currentTime = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+
+        // إذا كان حقل الدخول فارغاً، نأخذ الوقت الحالي
+        const finalCheckIn = manualEntry.checkIn || currentTime;
+
+        // إذا كان حقل الخروج فارغاً، لا نعطيه قيمة (إلا إذا أردت أن يكون في نفس اللحظة)
+        // بناء على طلبك: تحديد الدخول والخروج ليس إجباري.
+        const finalCheckOut = manualEntry.checkOut || undefined;
+
+        let totalHours = 0;
+        if (finalCheckOut) {
+            const [h1, m1] = finalCheckIn.split(':').map(Number);
+            const [h2, m2] = finalCheckOut.split(':').map(Number);
+            totalHours = parseFloat(((h2 * 60 + m2 - (h1 * 60 + m1)) / 60).toFixed(2));
+            if (totalHours < 0) totalHours = 0; // حماية من الإدخال العكسي
         }
 
         const newRec = {
             id: Math.random().toString(),
             employeeId: manualEntry.userId,
             date: manualEntry.date,
-            checkIn: manualEntry.checkIn,
-            checkOut: manualEntry.checkOut || undefined,
-            totalHours: manualEntry.checkOut ? 8 : 0,
+            checkIn: finalCheckIn,
+            checkOut: finalCheckOut,
+            totalHours,
         };
 
         try {
@@ -330,12 +348,12 @@ const AttendanceScreen = ({ user, navigation }: { user?: any, navigation?: any }
 
                         <View style={styles.row}>
                             <View style={{ flex: 1, marginLeft: 10 }}>
-                                <Text style={styles.inputLabel}>وقت الدخول</Text>
-                                <TextInput style={styles.modalInput} placeholder="08:00" value={manualEntry.checkIn} onChangeText={t => setManualEntry({ ...manualEntry, checkIn: t })} textAlign="right" />
+                                <Text style={styles.inputLabel}>وقت الدخول (اختياري)</Text>
+                                <TextInput style={styles.modalInput} placeholder="08:00 (التلقائي: الوقت الحالي)" value={manualEntry.checkIn} onChangeText={t => setManualEntry({ ...manualEntry, checkIn: t })} textAlign="right" />
                             </View>
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.inputLabel}>وقت الخروج</Text>
-                                <TextInput style={styles.modalInput} placeholder="16:00" value={manualEntry.checkOut} onChangeText={t => setManualEntry({ ...manualEntry, checkOut: t })} textAlign="right" />
+                                <Text style={styles.inputLabel}>وقت الخروج (اختياري)</Text>
+                                <TextInput style={styles.modalInput} placeholder="مثال: 16:00" value={manualEntry.checkOut} onChangeText={t => setManualEntry({ ...manualEntry, checkOut: t })} textAlign="right" />
                             </View>
                         </View>
 

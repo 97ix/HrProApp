@@ -15,9 +15,13 @@ import { COLORS, SPACING, BORDER_RADIUS } from '../constants/theme';
 import api from '../services/api';
 import { Employee, UserRole } from '../types';
 
+interface ExtendedEmployee extends Employee {
+    isFrozen?: boolean;
+}
+
 const UserManagerScreen = ({ navigation }: { navigation?: any }) => {
     const insets = useSafeAreaInsets();
-    const [users, setUsers] = useState<Employee[]>([]);
+    const [users, setUsers] = useState<ExtendedEmployee[]>([]);
     const [loading, setLoading] = useState(true);
 
     // States for Role Selection Modal
@@ -75,22 +79,28 @@ const UserManagerScreen = ({ navigation }: { navigation?: any }) => {
         }
     };
 
-    const handleDeleteUser = (id: string) => {
+    const handleFreezeUser = (user: ExtendedEmployee) => {
+        const isCurrentlyFrozen = user.isFrozen;
+        const alertTitle = isCurrentlyFrozen ? 'إلغاء التجميد' : 'تجميد المستخدم';
+        const alertMessage = isCurrentlyFrozen
+            ? 'هل أنت متأكد من إلغاء تجميد حساب هذا المستخدم والسماح له بالدخول مجدداً؟'
+            : 'هل أنت متأكد من تجميد حساب هذا المستخدم ومنعه من الدخول؟ (سيظل الموظف مسجلاً في النظام)';
+
         Alert.alert(
-            'حذف مستخدم',
-            'هل أنت متأكد من حذف هذا المستخدم من النظام؟',
+            alertTitle,
+            alertMessage,
             [
                 { text: 'إلغاء', style: 'cancel' },
                 {
-                    text: 'حذف',
-                    style: 'destructive',
+                    text: isCurrentlyFrozen ? 'إلغاء التجميد' : 'تجميد',
+                    style: isCurrentlyFrozen ? 'default' : 'destructive',
                     onPress: async () => {
                         try {
-                            await api.delete(`/api/users/${id}`);
-                            setUsers(users.filter(u => u.id !== id));
-                            Alert.alert('نجاح', 'تم حذف المستخدم بنجاح');
+                            const res = await api.put(`/api/users/${user.id}/freeze`);
+                            setUsers(users.map(u => u.id === user.id ? { ...u, isFrozen: res.data.isFrozen } : u));
+                            Alert.alert('نجاح', isCurrentlyFrozen ? 'تم إلغاء التجميد بنجاح' : 'تم تجميد حساب المستخدم بنجاح');
                         } catch (error) {
-                            Alert.alert('خطأ', 'فشل الحذف من السيرفر');
+                            Alert.alert('خطأ', 'فشل تغيير حالة المستخدم');
                         }
                     }
                 }
@@ -152,16 +162,17 @@ const UserManagerScreen = ({ navigation }: { navigation?: any }) => {
                     <ShieldCheck size={16} color={COLORS.primary} />
                     <Text style={[styles.actionText, { color: COLORS.primary }]}>الصلاحيات</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.actionBtn, { borderColor: COLORS.accent }]}>
-                    <UserMinus size={16} color={COLORS.accent} />
-                    <Text style={[styles.actionText, { color: COLORS.accent }]}>تجميد</Text>
-                </TouchableOpacity>
                 <TouchableOpacity
-                    style={[styles.actionBtn, { borderColor: COLORS.danger }]}
-                    onPress={() => handleDeleteUser(item.id)}
+                    style={[styles.actionBtn, {
+                        borderColor: item.isFrozen ? COLORS.warning : COLORS.danger,
+                        backgroundColor: item.isFrozen ? COLORS.warning + '15' : COLORS.danger + '10'
+                    }]}
+                    onPress={() => handleFreezeUser(item)}
                 >
-                    <Trash2 size={16} color={COLORS.danger} />
-                    <Text style={[styles.actionText, { color: COLORS.danger }]}>حذف</Text>
+                    <UserMinus size={16} color={item.isFrozen ? COLORS.warning : COLORS.danger} />
+                    <Text style={[styles.actionText, { color: item.isFrozen ? COLORS.warning : COLORS.danger }]}>
+                        {item.isFrozen ? 'الحساب مجمد' : 'تجميد الحساب'}
+                    </Text>
                 </TouchableOpacity>
             </View>
         </View>

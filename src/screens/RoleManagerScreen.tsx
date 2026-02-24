@@ -106,7 +106,7 @@ const RoleManagerScreen = ({ navigation }: { navigation?: any }) => {
 
             <FlatList
                 data={roles}
-                keyExtractor={item => item.id}
+                keyExtractor={item => item.id?.toString()}
                 contentContainerStyle={styles.list}
                 keyboardShouldPersistTaps="handled"
                 renderItem={({ item }) => (
@@ -115,7 +115,7 @@ const RoleManagerScreen = ({ navigation }: { navigation?: any }) => {
                         <View style={styles.roleInfo}>
                             <Text style={styles.roleNameAr}>{item.nameAr}</Text>
                             <Text style={styles.roleNameEn}>{item.nameEn}</Text>
-                            <Text style={styles.permCount}>{item.permissions.length} صلاحية</Text>
+                            <Text style={styles.permCount}>{(item.permissions || []).length} صلاحية</Text>
                         </View>
                         <View style={styles.roleActions}>
                             <TouchableOpacity style={styles.actionBtn} onPress={() => handleEdit(item)}>
@@ -152,9 +152,9 @@ const RoleManagerScreen = ({ navigation }: { navigation?: any }) => {
 
                         <Text style={styles.inputLabel}>تحديد الصلاحيات</Text>
                         <View style={styles.permGrid}>
-                            {allPermissions.map(perm => (
+                            {allPermissions.map((perm, index) => (
                                 <TouchableOpacity
-                                    key={perm}
+                                    key={`perm-${perm}-${index}`}
                                     style={[styles.permItem, roleForm.permissions.includes(perm) && styles.permItemActive]}
                                     onPress={() => togglePermission(perm)}
                                 >
