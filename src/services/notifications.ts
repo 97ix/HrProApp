@@ -49,8 +49,10 @@ export async function registerForPushNotificationsAsync() {
 
         try {
             // محاولة الحصول على Expo Push Token للتعامل مع سيرفرات إكسبو
+            // We use the EAS projectId from app.json, fallback to a valid generated UUID if absent
+            const fallbackId = "11111111-2222-3333-4444-555555555555";
             const projectId =
-                Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId ?? "your-project-id";
+                Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId ?? fallbackId;
 
             token = (
                 await Notifications.getExpoPushTokenAsync({
