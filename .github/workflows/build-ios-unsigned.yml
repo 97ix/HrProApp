@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-14 # استخدام نظام ماك مستقر لتفادي المشاكل الحديثة مع Expo
+    runs-on: macos-15 # استخدام أحدث نظام ماك لتوفير Xcode 16 المطلوب من React Native
     env:
       CI: false # حل مشكلة توقف البناء في حال وجود تحذيرات
 
