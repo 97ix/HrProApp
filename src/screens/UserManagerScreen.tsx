@@ -19,7 +19,7 @@ interface ExtendedEmployee extends Employee {
     isFrozen?: boolean;
 }
 
-const UserManagerScreen = ({ navigation }: { navigation?: any }) => {
+const UserManagerScreen = ({ navigation, user }: { navigation?: any, user?: any }) => {
     const insets = useSafeAreaInsets();
     const [users, setUsers] = useState<ExtendedEmployee[]>([]);
     const [loading, setLoading] = useState(true);

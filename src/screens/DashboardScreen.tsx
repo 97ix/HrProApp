@@ -41,7 +41,7 @@ const DashboardScreen = ({ user, onLogout, navigation }: { user: any, onLogout: 
     const [isNotifVisible, setIsNotifVisible] = useState(false);
     const [stats, setStats] = useState({ totalEmployees: 0, presentToday: 0, pendingLeaves: 0 });
 
-    const isAdmin = Boolean(user?.role === 'HR' || user?.role === 'MANAGER' || user?.role === 'DEPT_MGR');
+    const isAdmin = Boolean(user?.role === 'HR' || user?.role === 'MANAGER' || user?.role === 'DEPT_MGR' || user?.role === 'DEPARTMENT_MANAGER');
 
     const onRefresh = React.useCallback(() => {
         setRefreshing(true);
@@ -52,10 +52,22 @@ const DashboardScreen = ({ user, onLogout, navigation }: { user: any, onLogout: 
 
     const fetchNotifications = async () => {
         try {
-            const res = await api.get('/api/notifications');
+            const params: any = {};
+            if (user?.id) params.userId = user.id;
+            if (user?.role) params.role = user.role;
+            const res = await api.get('/api/notifications', { params });
             setNotifications(res.data);
         } catch (e) {
             console.error('Fetch Notifications Error:', e);
+        }
+    };
+
+    const markAllRead = async () => {
+        try {
+            await api.put('/api/notifications/read-all', { userId: user?.id, role: user?.role });
+            setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+        } catch (e) {
+            console.error('Mark all read error:', e);
         }
     };
 
@@ -75,7 +87,17 @@ const DashboardScreen = ({ user, onLogout, navigation }: { user: any, onLogout: 
         const socket = getSocket();
         if (socket) {
             socket.on('new-notification', (notif: any) => {
-                setNotifications(prev => [notif, ...prev].slice(0, 50));
+                // فلتر الإشعار قبل إضافته بناءً على دور المستخدم
+                const isAdminNotif = !notif.userId; // إشعار عام للمدراء
+                const isPersonalNotif = notif.userId === user?.id; // إشعار شخصي
+                const userIsAdmin = Boolean(
+                    user?.role === 'HR' || user?.role === 'MANAGER' ||
+                    user?.role === 'DEPT_MGR' || user?.role === 'DEPARTMENT_MANAGER'
+                );
+
+                if (isPersonalNotif || (userIsAdmin && isAdminNotif)) {
+                    setNotifications(prev => [notif, ...prev].slice(0, 50));
+                }
             });
             socket.on('data-update', () => {
                 fetchNotifications();
@@ -87,6 +109,7 @@ const DashboardScreen = ({ user, onLogout, navigation }: { user: any, onLogout: 
             };
         }
     }, []);
+
 
     interface MenuItem {
         id?: string;
@@ -130,7 +153,13 @@ const DashboardScreen = ({ user, onLogout, navigation }: { user: any, onLogout: 
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.iconButton} onPress={() => setIsNotifVisible(true)}>
                         <Bell size={24} color={COLORS.text} />
-                        {notifications.length > 0 && <View style={styles.badge} />}
+                        {notifications.filter(n => !n.read).length > 0 && (
+                            <View style={[styles.badge, { position: 'absolute', top: 2, right: 2, backgroundColor: COLORS.danger, width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' }]}>
+                                <Text style={{ color: '#fff', fontSize: 9, fontWeight: 'bold' }}>
+                                    {notifications.filter(n => !n.read).length > 99 ? '99+' : notifications.filter(n => !n.read).length}
+                                </Text>
+                            </View>
+                        )}
                     </TouchableOpacity>
                 </View>
                 <View style={styles.userInfo}>
@@ -216,7 +245,9 @@ const DashboardScreen = ({ user, onLogout, navigation }: { user: any, onLogout: 
                             <X size={28} color={COLORS.text} />
                         </TouchableOpacity>
                         <Text style={styles.modalNotifTitle}>تنبيهات النظام</Text>
-                        <View style={{ width: 28 }} />
+                        <TouchableOpacity onPress={markAllRead} style={{ paddingHorizontal: 8, paddingVertical: 4, backgroundColor: COLORS.primary + '20', borderRadius: 8 }}>
+                            <Text style={{ color: COLORS.primary, fontSize: 10, fontWeight: 'bold' }}>{'قراءة الكل'}</Text>
+                        </TouchableOpacity>
                     </View>
 
                     <ScrollView contentContainerStyle={{ padding: SPACING.md }}>

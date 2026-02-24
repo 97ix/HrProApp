@@ -48,7 +48,9 @@ const LeaveRequestsScreen = ({ user, navigation }: { user?: any, navigation?: an
     });
 
     useEffect(() => {
-        fetchData();
+        if (user?.id) {
+            fetchData();
+        }
         const socket = getSocket();
         if (socket) {
             socket.on('data-update', () => fetchData());
@@ -56,13 +58,17 @@ const LeaveRequestsScreen = ({ user, navigation }: { user?: any, navigation?: an
                 socket.off('data-update');
             };
         }
-    }, []);
+    }, [user?.id]);
 
-    const isAdmin = Boolean(user?.role === 'HR' || user?.role === 'MANAGER' || user?.role === 'DEPT_MGR');
+    const isAdmin = Boolean(user?.role === 'HR' || user?.role === 'MANAGER' || user?.role === 'DEPT_MGR' || user?.role === 'DEPARTMENT_MANAGER');
 
     const fetchData = async () => {
         try {
-            const endpoint = isAdmin ? '/api/leaves' : `/api/leaves/employee/${user?.id}`;
+            const userIsAdmin = Boolean(
+                user?.role === 'HR' || user?.role === 'MANAGER' ||
+                user?.role === 'DEPT_MGR' || user?.role === 'DEPARTMENT_MANAGER'
+            );
+            const endpoint = userIsAdmin ? '/api/leaves' : `/api/leaves/employee/${user?.id}`;
             const [leaveRes, empRes] = await Promise.all([
                 api.get(endpoint),
                 api.get('/api/employees')
@@ -70,11 +76,9 @@ const LeaveRequestsScreen = ({ user, navigation }: { user?: any, navigation?: an
             setRequests(leaveRes.data || []);
             setEmployees(empRes.data || []);
         } catch (error) {
-            setRequests([
-                { id: '1', employeeId: 'emp_1', type: 'ANNUAL', startDate: '2026-02-25', endDate: '2026-02-28', status: 'PENDING', reason: 'إجازة عائلية' },
-                { id: '2', employeeId: 'emp_2', type: 'SICK', startDate: '2026-02-23', endDate: '2026-02-24', status: 'APPROVED', reason: 'مرضية' },
-            ] as any);
-            setEmployees([{ id: 'emp_1', name: 'أحمد علي' }, { id: 'emp_2', name: 'سارة محمود' }] as any);
+            console.warn('Leave fetch error, using dummy data:', error);
+            setRequests([]);
+            setEmployees([]);
         } finally {
             setLoading(false);
         }

@@ -17,7 +17,7 @@ import api from '../services/api';
 import { getSocket } from '../services/socket';
 import { Loan, Employee } from '../types';
 
-const LoansScreen = ({ navigation }: { navigation?: any }) => {
+const LoansScreen = ({ navigation, user }: { navigation?: any, user?: any }) => {
     const insets = useSafeAreaInsets();
     const [loans, setLoans] = useState<Loan[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
@@ -48,22 +48,26 @@ const LoansScreen = ({ navigation }: { navigation?: any }) => {
                 socket.off('data-update');
             };
         }
-    }, []);
+    }, [user?.id]);
 
     const fetchData = async () => {
         try {
+            const userIsAdmin = Boolean(
+                user?.role === 'HR' || user?.role === 'MANAGER' ||
+                user?.role === 'DEPT_MGR' || user?.role === 'DEPARTMENT_MANAGER'
+            );
+            // الموظفون يرون قروضهم فقط، المدراء يرون الكل
+            const endpoint = userIsAdmin || !user?.id ? '/api/loans' : `/api/loans/employee/${user?.id}`;
             const [loanRes, empRes] = await Promise.all([
-                api.get('/api/loans'),
+                api.get(endpoint),
                 api.get('/api/employees')
             ]);
             setLoans(loanRes.data || []);
             setEmployees(empRes.data || []);
         } catch (error) {
-            setLoans([
-                { id: '1', employeeId: 'emp_1', totalAmount: 2000000, installmentAmount: 200000, installmentsCount: 10, status: 'PENDING', reason: 'زواج', createdAt: '2026-02-23' } as any,
-                { id: '2', employeeId: 'emp_2', totalAmount: 5000000, installmentAmount: 500000, installmentsCount: 10, status: 'APPROVED', reason: 'بناء منزل', createdAt: '2026-02-20' } as any,
-            ]);
-            setEmployees([{ id: 'emp_1', name: 'أحمد علي' }, { id: 'emp_2', name: 'سارة محمود' }] as any);
+            console.warn('Loans fetch error:', error);
+            setLoans([]);
+            setEmployees([]);
         } finally {
             setLoading(false);
         }

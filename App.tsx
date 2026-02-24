@@ -141,7 +141,7 @@ export default function App() {
       case 'Leaves':
         return <LeaveRequestsScreen navigation={{ navigate: navigateTo }} user={user} />;
       case 'UserManager':
-        return <UserManagerScreen navigation={{ navigate: navigateTo }} />;
+        return <UserManagerScreen navigation={{ navigate: navigateTo }} user={user} />;
       case 'RoleManager':
         return <RoleManagerScreen navigation={{ navigate: navigateTo }} />;
       case 'ActivityLogs':
@@ -151,7 +151,7 @@ export default function App() {
       case 'FinancialManagement':
         return <FinancialManagementScreen navigation={{ navigate: navigateTo }} />;
       case 'Loans':
-        return <LoansScreen navigation={{ navigate: navigateTo }} />;
+        return <LoansScreen navigation={{ navigate: navigateTo }} user={user} />;
       case 'Deductions':
         return <DeductionsScreen navigation={{ navigate: navigateTo }} />;
       case 'Departments':
