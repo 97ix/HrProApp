@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { COLORS } from './src/constants/theme';
 import { storage } from './src/services/storage';
 import { initSocket } from './src/services/socket';
+import { registerForPushNotificationsAsync, updatePushTokenOnServer } from './src/services/notifications';
 
 // Import Screens manually
 import LoginScreen from './src/screens/LoginScreen';
@@ -71,6 +72,10 @@ export default function App() {
           setUser(savedUser);
           setCurrentScreen('Dashboard');
           initSocket();
+          // تسجيل الإشعارات بعد التحقق من الدخول
+          registerForPushNotificationsAsync().then((token) => {
+            if (token) updatePushTokenOnServer(token, (savedUser as any).id);
+          });
         }
       } catch (e) {
         console.error('Check Login Error:', e);
@@ -85,6 +90,10 @@ export default function App() {
     setUser(userData);
     setCurrentScreen('Dashboard');
     initSocket();
+    // تسجيل الإشعارات مباشرة بعد نجاح الدخول لأول مرة
+    registerForPushNotificationsAsync().then((token) => {
+      if (token) updatePushTokenOnServer(token, (userData as any).id);
+    });
   };
 
   const handleLogout = async () => {
