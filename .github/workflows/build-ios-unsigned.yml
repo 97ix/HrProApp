@@ -16,7 +16,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18 # تأكد من استخدام إصدار Node مناسب
+          node-version: 20 # تحديث إصدار Node إلى 20 ليتوافق أكثر مع بيئة الماك الجديدة
 
       - name: Install dependencies
         working-directory: ./
@@ -27,10 +27,12 @@ jobs:
         run: |
           npx expo prebuild -p ios --clean
           
-      - name: Fix Bundle React Native script bug
+      - name: Fix Node Path for Xcode (Resolve Bundle React Native phase error)
         working-directory: ./ios
         run: |
-          sed -i '' 's/NODE_BINARY="node"/NODE_BINARY="$(command -v node)"/g' Pods/Target\ Support\ Files/Pods-HrProApp/Pods-HrProApp-frameworks.sh || true
+          echo "export NODE_BINARY=$(command -v node)" > .xcode.env
+          echo "export NODE_BINARY=$(command -v node)" >> .xcode.env.local
+          cat .xcode.env
 
       - name: Install CocoaPods
         working-directory: ./ios
