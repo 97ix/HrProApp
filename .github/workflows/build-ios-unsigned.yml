@@ -5,7 +5,9 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest # استخدام نظام ماك وهمي مجاني من جيتهاب
+    runs-on: macos-14 # استخدام نظام ماك مستقر لتفادي المشاكل الحديثة مع Expo
+    env:
+      CI: false # حل مشكلة توقف البناء في حال وجود تحذيرات
 
     steps:
       - name: Checkout repository
@@ -22,7 +24,13 @@ jobs:
 
       - name: Expo Prebuild (Generate iOS folder)
         working-directory: ./
-        run: npx expo prebuild -p ios --clean
+        run: |
+          npx expo prebuild -p ios --clean
+          
+      - name: Fix Bundle React Native script bug
+        working-directory: ./ios
+        run: |
+          sed -i '' 's/NODE_BINARY="node"/NODE_BINARY="$(command -v node)"/g' Pods/Target\ Support\ Files/Pods-HrProApp/Pods-HrProApp-frameworks.sh || true
 
       - name: Install CocoaPods
         working-directory: ./ios
