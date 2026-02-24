@@ -1,0 +1,56 @@
+name: Build Unsigned iOS IPA
+
+on:
+  workflow_dispatch: # يتيح لك تشغيل هذا الإجراء يدوياً من واجهة GitHub
+
+jobs:
+  build:
+    runs-on: macos-latest # استخدام نظام ماك وهمي مجاني من جيتهاب
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18 # تأكد من استخدام إصدار Node مناسب
+
+      - name: Install dependencies
+        working-directory: ./mobile_app
+        run: npm install
+
+      - name: Expo Prebuild (Generate iOS folder)
+        working-directory: ./mobile_app
+        run: npx expo prebuild -p ios --clean
+
+      - name: Install CocoaPods
+        working-directory: ./mobile_app/ios
+        run: pod install
+
+      - name: Build App (Unsigned)
+        working-directory: ./mobile_app/ios
+        run: |
+          xcodebuild -workspace HrProApp.xcworkspace \
+            -scheme HrProApp \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Package Payload to IPA
+        working-directory: ./mobile_app/ios
+        run: |
+          mkdir -p Payload
+          # نقل التطبيق المصدر (بصيغة .app) داخل مجلد Payload
+          mv build/Build/Products/Release-iphoneos/HrProApp.app Payload/
+          # ضغط المجلد بصيغة .ipa
+          zip -r app-unsigned.ipa Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HrProApp-Unsigned-IPA
+          path: mobile_app/ios/app-unsigned.ipa
