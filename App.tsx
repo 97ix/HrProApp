@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ActivityIndicator, Alert, StatusBar, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { StyleSheet, View, ActivityIndicator, Alert, StatusBar, Platform, TouchableWithoutFeedback, Keyboard, Animated, Image, Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { COLORS } from './src/constants/theme';
 import { storage } from './src/services/storage';
@@ -27,12 +27,42 @@ export default function App() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [currentScreen, setCurrentScreen] = useState('Login');
+  const [splashVisible, setSplashVisible] = useState(true);
+
+  // رسوميات الانيميشن
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const scaleAnim = React.useRef(new Animated.Value(0.8)).current;
 
   useEffect(() => {
     StatusBar.setBarStyle('light-content');
     if (Platform.OS === 'android') {
-      StatusBar.setBackgroundColor(COLORS.background);
+      StatusBar.setBackgroundColor(COLORS.surface);
     }
+
+    // تشغيل الأنيميشن للدخول (ظهور تدريجي وتكبير)
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 4,
+        useNativeDriver: true,
+      })
+    ]).start();
+
+    // إخفاء الـ Splash Screen بعد 2.5 ثانية بسلاسة
+    setTimeout(() => {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }).start(() => {
+        setSplashVisible(false);
+      });
+    }, 2500);
 
     const checkLogin = async () => {
       try {
@@ -122,11 +152,19 @@ export default function App() {
     }
   };
 
-  if (loading) {
+  if (splashVisible || loading) {
     return (
       <SafeAreaProvider>
-        <View style={[styles.container, styles.centered]}>
-          <ActivityIndicator size="large" color={COLORS.primary} animating={true} />
+        <View style={[styles.container, styles.splashContainer]}>
+          <Animated.View style={{ opacity: fadeAnim, transform: [{ scale: scaleAnim }], alignItems: 'center' }}>
+            <Image
+              source={require('./assets/custom-splash.png')}
+              style={styles.splashLogo}
+              resizeMode="contain"
+            />
+            <Text style={styles.splashTitle}>HR Pro</Text>
+            <ActivityIndicator size="large" color={COLORS.primary} animating={true} style={{ marginTop: 30 }} />
+          </Animated.View>
         </View>
       </SafeAreaProvider>
     );
@@ -150,5 +188,22 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  splashContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+  },
+  splashLogo: {
+    width: 140,
+    height: 140,
+    marginBottom: 20,
+  },
+  splashTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    letterSpacing: 2,
   },
 });
