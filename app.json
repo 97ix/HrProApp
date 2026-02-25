@@ -17,9 +17,11 @@
       "bundleIdentifier": "com.hrpro.app",
       "infoPlist": {
         "UIBackgroundModes": [
+          "remote-notification",
           "remote-notification"
         ],
-        "NSUserNotificationUsageDescription": "نحتاج إذن الإشعارات لإعلامك بتحديثات الموارد البشرية"
+        "NSUserNotificationUsageDescription": "نحتاج إذن الإشعارات لإعلامك بتحديثات الموارد البشرية",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -49,11 +51,12 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "11111111-2222-3333-4444-555555555555"
+        "projectId": "12fbc3cc-4cdf-4665-bf60-acfd7c4272d4"
       }
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "owner": "97ix"
   }
 }

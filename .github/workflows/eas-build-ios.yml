@@ -1,0 +1,43 @@
+name: EAS Build iOS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Build profile (internal / preview / production)'
+        required: true
+        default: 'internal'
+        type: choice
+        options:
+          - internal
+          - preview
+          - production
+
+jobs:
+  build:
+    name: Build iOS App
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build iOS on EAS
+        run: eas build --platform ios --profile ${{ github.event.inputs.profile || 'internal' }} --non-interactive
