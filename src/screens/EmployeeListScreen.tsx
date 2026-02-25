@@ -83,16 +83,8 @@ const EmployeeListScreen = ({ navigation }: { navigation?: any }) => {
                 setNewEmployee(prev => ({ ...prev, departmentId: deptRes.data[0].id }));
             }
         } catch (error) {
-            setEmployees([
-                { id: '1', name: 'أحمد علي', departmentId: 'dept_1', role: UserRole.EMPLOYEE, salary: 1200000, phoneNumber: '07701234567', workingHours: 8, username: 'ahmed', password: '123' } as any,
-                { id: '2', name: 'سارة محمود', departmentId: 'dept_2', role: UserRole.DEPARTMENT_MANAGER, salary: 1800000, phoneNumber: '07801234567', workingHours: 8, username: 'sara', password: '123' } as any,
-            ]);
-            setDepartments([
-                { id: 'dept_1', name: 'تكنولوجيا المعلومات' },
-                { id: 'dept_2', name: 'المحاسبة' },
-                { id: 'dept_3', name: 'الموارد البشرية' },
-            ]);
-            setNewEmployee(prev => ({ ...prev, departmentId: 'dept_1' }));
+            setEmployees([]);
+            setDepartments([]);
         } finally {
             setLoading(false);
         }

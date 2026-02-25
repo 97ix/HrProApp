@@ -32,10 +32,7 @@ const DeductionsScreen = ({ navigation }: { navigation?: any }) => {
         reason: '',
     });
 
-    const [data, setData] = useState([
-        { id: '1', name: 'أحمد علي', type: 'BONUS', amount: '50,000', reason: 'مكافأة تميز', date: '2026-02-23' },
-        { id: '2', name: 'سارة محمود', type: 'DEDUCTION', amount: '25,000', reason: 'تأخر عن الدوام', date: '2026-02-22' },
-    ]);
+    const [data, setData] = useState<any[]>([]);
 
     useEffect(() => {
         fetchData();
@@ -43,58 +40,76 @@ const DeductionsScreen = ({ navigation }: { navigation?: any }) => {
 
     const fetchData = async () => {
         try {
-            const res = await api.get('/api/employees');
-            setEmployees(res.data || []);
+            const [empRes, adjRes] = await Promise.all([
+                api.get('/api/employees'),
+                api.get('/api/adjustments').catch(() => ({ data: [] })),
+            ]);
+            setEmployees(empRes.data || []);
+            const adjData = adjRes.data;
+            if (Array.isArray(adjData)) setData(adjData);
         } catch (e) {
-            setEmployees([{ id: 'emp_1', name: 'أحمد علي' }, { id: 'emp_2', name: 'سارة محمود' }] as any);
+            setEmployees([]);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleAddAdjustment = () => {
+    const handleAddAdjustment = async () => {
         if (!form.userId || !form.amount || !form.reason) {
             Alert.alert('خطأ', 'يرجى ملء جميع الحقول واختيار الموظف');
             return;
         }
 
         const newEntry = {
-            id: Math.random().toString(),
+            id: Math.random().toString(36).substr(2, 9),
+            employeeId: form.userId,
             name: form.userName,
             type: type,
-            amount: Number(form.amount).toLocaleString(),
+            amount: Number(form.amount),
             reason: form.reason,
             date: new Date().toISOString().split('T')[0],
         };
 
-        setData([newEntry, ...data]);
+        try {
+            await api.post('/api/adjustments', newEntry);
+        } catch (e) {
+            console.warn('Failed to save adjustment');
+        }
+
+        setData(prev => [{ ...newEntry, amount: Number(form.amount).toLocaleString() }, ...prev]);
         setIsModalVisible(false);
         setForm({ userId: '', userName: 'اختر الموظف', amount: '', reason: '' });
         Alert.alert('نجاح', 'تم تسجيل العملية بنجاح');
     };
 
-    const renderItem = ({ item }: { item: any }) => (
-        <View style={styles.card}>
-            <View style={styles.cardHeader}>
-                <View style={styles.recordInfo}>
-                    <Text style={styles.userName}>{item.name}</Text>
-                    <Text style={styles.date}>{item.date}</Text>
+    const renderItem = ({ item }: { item: any }) => {
+        // اسم الموظف: إما محفوظ مع السجل (من الموبايل) أو يُجلب من قائمة الموظفين (من سطح المكتب)
+        const empName = item.name || employees.find((e: any) => e.id === item.employeeId)?.name || '---';
+        const amountNum = typeof item.amount === 'number' ? item.amount : Number(String(item.amount).replace(/,/g, ''));
+
+        return (
+            <View style={styles.card}>
+                <View style={styles.cardHeader}>
+                    <View style={styles.recordInfo}>
+                        <Text style={styles.userName}>{empName}</Text>
+                        <Text style={styles.date}>{item.date}</Text>
+                    </View>
+                    <View style={[styles.typeBadge, { backgroundColor: item.type === 'BONUS' ? COLORS.secondary + '20' : COLORS.danger + '20' }]}>
+                        {item.type === 'BONUS' ? <TrendingUp size={16} color={COLORS.secondary} /> : <TrendingDown size={16} color={COLORS.danger} />}
+                        <Text style={[styles.typeText, { color: item.type === 'BONUS' ? COLORS.secondary : COLORS.danger }]}>
+                            {item.type === 'BONUS' ? 'زيادة' : 'خصم'}
+                        </Text>
+                    </View>
                 </View>
-                <View style={[styles.typeBadge, { backgroundColor: item.type === 'BONUS' ? COLORS.secondary + '20' : COLORS.danger + '20' }]}>
-                    {item.type === 'BONUS' ? <TrendingUp size={16} color={COLORS.secondary} /> : <TrendingDown size={16} color={COLORS.danger} />}
-                    <Text style={[styles.typeText, { color: item.type === 'BONUS' ? COLORS.secondary : COLORS.danger }]}>
-                        {item.type === 'BONUS' ? 'زيادة' : 'خصم'}
+                <View style={styles.details}>
+                    <Text style={styles.reason}>{item.reason}</Text>
+                    <Text style={[styles.amount, { color: item.type === 'BONUS' ? COLORS.secondary : COLORS.danger }]}>
+                        {item.type === 'BONUS' ? '+' : '-'}{amountNum.toLocaleString()} د.ع
                     </Text>
                 </View>
             </View>
-            <View style={styles.details}>
-                <Text style={styles.reason}>{item.reason}</Text>
-                <Text style={[styles.amount, { color: item.type === 'BONUS' ? COLORS.secondary : COLORS.danger }]}>
-                    {item.type === 'BONUS' ? '+' : '-'}{item.amount} د.ع
-                </Text>
-            </View>
-        </View>
-    );
+        );
+    };
 
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>

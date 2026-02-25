@@ -62,8 +62,8 @@ const AttendanceScreen = ({ user, navigation }: { user?: any, navigation?: any }
                 setIsCheckedIn((attRes.data || []).some((r: any) => r.date === today && !r.checkOut));
             }
         } catch (error) {
-            setAttendance([{ id: '1', employeeId: 'emp_1', date: '2026-02-23', checkIn: '08:15', checkOut: '16:30', totalHours: 8.25 }] as any);
-            setEmployees([{ id: 'emp_1', name: 'أحمد علي' }, { id: 'emp_2', name: 'سارة محمود' }] as any);
+            setAttendance([]);
+            setEmployees([]);
         } finally {
             setLoading(false);
         }
