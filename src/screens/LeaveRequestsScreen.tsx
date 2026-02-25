@@ -121,9 +121,14 @@ const LeaveRequestsScreen = ({ user, navigation }: { user?: any, navigation?: an
         setNewLeave(prev => ({ ...prev, count: countValue, deductionType: type, amount: amount.toString() }));
     };
 
-    const handleUndo = (id: string) => {
-        setRequests(requests.map(r => r.id === id ? { ...r, status: 'PENDING' } : r));
-        Alert.alert('تم التراجع', 'تم إعادة الطلب لحالة الانتظار');
+    const handleUndo = async (id: string) => {
+        try {
+            await api.put(`/api/leaves/${id}`, { status: 'PENDING' });
+            setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'PENDING' } : r));
+            Alert.alert('تم التراجع', 'تم إعادة الطلب لحالة الانتظار');
+        } catch (error) {
+            Alert.alert('خطأ', 'فشل التراجع عن القرار');
+        }
     };
 
     const handleAddLeave = async () => {
@@ -252,25 +257,37 @@ const LeaveRequestsScreen = ({ user, navigation }: { user?: any, navigation?: an
 
                         <View style={{ gap: 10, marginTop: 10 }}>
                             <TouchableOpacity
-                                style={[styles.footerBtn, { backgroundColor: COLORS.secondary, opacity: isProcessing ? 0.7 : 1 }]}
+                                style={[styles.footerBtn, { backgroundColor: isProcessing ? COLORS.secondary + '80' : COLORS.secondary }]}
                                 onPress={() => handleAction('APPROVED')}
                                 disabled={isProcessing}
                             >
-                                {isProcessing ? <ActivityIndicator color="#fff" /> : <CheckCircle size={20} color="#fff" />}
+                                {isProcessing
+                                    ? <ActivityIndicator color="#fff" size="small" />
+                                    : <CheckCircle size={20} color="#fff" />
+                                }
                                 <Text style={styles.footerBtnText}>موافقة على الإجازة</Text>
                             </TouchableOpacity>
+
                             <TouchableOpacity
-                                style={[styles.footerBtn, { backgroundColor: COLORS.danger, opacity: isProcessing ? 0.7 : 1 }]}
+                                style={[styles.footerBtn, { backgroundColor: isProcessing ? COLORS.danger + '80' : COLORS.danger }]}
                                 onPress={() => handleAction('REJECTED')}
                                 disabled={isProcessing}
                             >
-                                {isProcessing ? <ActivityIndicator color="#fff" /> : <XCircle size={20} color="#fff" />}
+                                {isProcessing
+                                    ? <ActivityIndicator color="#fff" size="small" />
+                                    : <XCircle size={20} color="#fff" />
+                                }
                                 <Text style={styles.footerBtnText}>رفض الطلب</Text>
                             </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={{ marginTop: 5, paddingVertical: 12, alignItems: 'center' }}
+                                onPress={() => setIsActionModalVisible(false)}
+                                disabled={isProcessing}
+                            >
+                                <Text style={{ color: COLORS.textMuted, fontSize: 14 }}>إلغاء</Text>
+                            </TouchableOpacity>
                         </View>
-                        <TouchableOpacity style={{ marginTop: 15 }} onPress={() => setIsActionModalVisible(false)}>
-                            <Text style={{ textAlign: 'center', color: COLORS.textMuted }}>إلغاء</Text>
-                        </TouchableOpacity>
                     </View>
                 </View>
             </Modal>
@@ -383,8 +400,8 @@ const styles = StyleSheet.create({
     inputLabel: { color: COLORS.text, fontSize: 14, fontWeight: '600', marginBottom: 8, textAlign: 'right' },
     modalInput: { backgroundColor: COLORS.background, borderRadius: BORDER_RADIUS.md, padding: SPACING.md, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border, color: COLORS.text },
     modalFooterActions: { flexDirection: 'row', gap: 10 },
-    footerBtn: { flex: 1, flexDirection: 'row-reverse', height: 50, borderRadius: BORDER_RADIUS.md, alignItems: 'center', justifyContent: 'center', gap: 8 },
-    footerBtnText: { color: '#fff', fontWeight: 'bold' },
+    footerBtn: { width: '100%', flexDirection: 'row-reverse', height: 52, borderRadius: BORDER_RADIUS.md, alignItems: 'center', justifyContent: 'center', gap: 10 },
+    footerBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
     pickerTrigger: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.background, borderRadius: BORDER_RADIUS.md, padding: SPACING.md, marginBottom: SPACING.md, borderWidth: 1, borderColor: COLORS.border },
     pickerText: { color: COLORS.text },
     saveBtn: { backgroundColor: COLORS.primary, flexDirection: 'row-reverse', height: 50, borderRadius: BORDER_RADIUS.md, alignItems: 'center', justifyContent: 'center', gap: 10 },
