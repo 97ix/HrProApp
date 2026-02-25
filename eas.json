@@ -1,6 +1,6 @@
 {
     "cli": {
-        "version": ">= 14.0.0",
+        "version": ">= 7.2.0",
         "appVersionSource": "remote"
     },
     "build": {
@@ -9,25 +9,15 @@
             "distribution": "internal"
         },
         "preview": {
-            "distribution": "internal",
-            "android": {
-                "buildType": "apk"
-            },
-            "ios": {
-                "simulator": false
-            }
-        },
-        "internal": {
-            "distribution": "internal",
-            "android": {
-                "buildType": "apk"
-            },
-            "ios": {
-                "resourceClass": "m-medium"
-            }
+            "distribution": "internal"
         },
         "production": {
             "autoIncrement": true
+        },
+        "simulator": {
+            "ios": {
+                "simulator": true
+            }
         }
     },
     "submit": {

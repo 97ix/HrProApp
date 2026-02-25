@@ -88,8 +88,6 @@ const DashboardScreen = ({ user, onLogout, navigation }: { user: any, onLogout: 
 
         fetchNotifications();
         fetchStats();
-
-        // ── Socket listener
         const socket = getSocket();
         if (socket) {
             socket.on('new-notification', (notif: any) => {
@@ -99,9 +97,10 @@ const DashboardScreen = ({ user, onLogout, navigation }: { user: any, onLogout: 
                     user?.role === 'HR' || user?.role === 'MANAGER' ||
                     user?.role === 'DEPT_MGR' || user?.role === 'DEPARTMENT_MANAGER'
                 );
+
                 if (isPersonalNotif || (userIsAdmin && isAdminNotif)) {
                     setNotifications(prev => [notif, ...prev].slice(0, 50));
-                    // 🔔 إطلاق إشعار نظام iOS/Android
+                    // 🔔 إطلاق إشعار نظام iOS/Android يظهر خارج التطبيق
                     showLocalNotification(
                         notif.title || 'HR Pro',
                         notif.message || notif.body || '',
@@ -113,38 +112,11 @@ const DashboardScreen = ({ user, onLogout, navigation }: { user: any, onLogout: 
                 fetchNotifications();
                 fetchStats();
             });
+            return () => {
+                socket.off('new-notification');
+                socket.off('data-update');
+            };
         }
-
-        // ── Polling: تحقق كل 30 ثانية من إشعارات جديدة
-        let lastNotifCount = 0;
-        const pollInterval = setInterval(async () => {
-            try {
-                const params: any = {};
-                if (user?.id) params.userId = user.id;
-                if (user?.role) params.role = user.role;
-                const res = await api.get('/api/notifications', { params });
-                const newNotifs: any[] = res.data || [];
-                const unread = newNotifs.filter(n => !n.read);
-
-                // إذا وصل إشعار جديد غير مقروء
-                if (unread.length > lastNotifCount && lastNotifCount > 0) {
-                    const latestNew = unread[0];
-                    showLocalNotification(
-                        latestNew.title || 'HR Pro',
-                        latestNew.message || latestNew.body || 'لديك إشعار جديد',
-                        { id: latestNew.id }
-                    );
-                }
-                lastNotifCount = unread.length;
-                setNotifications(newNotifs);
-            } catch (_) { }
-        }, 30000);
-
-        return () => {
-            socket?.off('new-notification');
-            socket?.off('data-update');
-            clearInterval(pollInterval);
-        };
     }, []);
 
 
