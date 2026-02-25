@@ -4,84 +4,126 @@ import { Platform, Alert } from 'react-native';
 import Constants from 'expo-constants';
 import api from './api';
 
-// تهيئة كيفية عرض الإشعار عند وصوله والتطبيق مفتوح (Foreground)
+// ── إعداد Handler: كيفية عرض الإشعار عندما يكون التطبيق مفتوحاً (Foreground)
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
         shouldShowAlert: true,
         shouldShowBanner: true,
         shouldShowList: true,
         shouldPlaySound: true,
-        shouldSetBadge: false,
+        shouldSetBadge: true,
     }),
 });
 
-/**
- * دالة طلب الصلاحيات واستخراج الـ Token من جهاز المستخدم
- */
-export async function registerForPushNotificationsAsync() {
-    let token;
-
-    // إعدادات إضافية لنظام الأندرويد فقط
+// ── طلب صلاحيات الإشعارات من نظام iOS
+export async function registerForPushNotificationsAsync(): Promise<string | undefined> {
+    // إعداد قناة الأندرويد
     if (Platform.OS === 'android') {
-        await Notifications.setNotificationChannelAsync('default', {
-            name: 'default',
+        await Notifications.setNotificationChannelAsync('hr-pro', {
+            name: 'HR Pro Notifications',
             importance: Notifications.AndroidImportance.MAX,
             vibrationPattern: [0, 250, 250, 250],
-            lightColor: '#FF231F7C',
+            lightColor: '#6366f1',
+            sound: 'default',
+            enableVibrate: true,
         });
     }
 
-    // التأكد من أن الجهاز حقيقي (وليس محاكي) لأن بعض المحاكيات لا تدعم الإشعارات
-    if (Device.isDevice) {
-        const { status: existingStatus } = await Notifications.getPermissionsAsync();
-        let finalStatus = existingStatus;
-
-        // إذا لم تكن الصلاحية ممنوحة مسبقاً، اطلبها من المستخدم
-        if (existingStatus !== 'granted') {
-            const { status } = await Notifications.requestPermissionsAsync();
-            finalStatus = status;
-        }
-
-        if (finalStatus !== 'granted') {
-            Alert.alert('فشل', 'لم يتم منح صلاحية الإشعارات!');
-            return undefined;
-        }
-
-        try {
-            // محاولة الحصول على Expo Push Token للتعامل مع سيرفرات إكسبو
-            // We use the EAS projectId from app.json, fallback to a valid generated UUID if absent
-            const fallbackId = "11111111-2222-3333-4444-555555555555";
-            const projectId =
-                Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId ?? fallbackId;
-
-            token = (
-                await Notifications.getExpoPushTokenAsync({
-                    projectId,
-                })
-            ).data;
-
-            console.log('Push Token Generated:', token);
-        } catch (e: any) {
-            console.log('Error Getting Token:', e?.message);
-            // fallback in case expo project is not fully configured
-        }
-    } else {
-        console.log('يجب استخدام جهاز حقيقي لتجربة إشعارات الـ Push');
+    // يجب أن يكون جهازاً حقيقياً
+    if (!Device.isDevice) {
+        console.log('Push notifications require a physical device');
+        return undefined;
     }
 
-    return token;
+    // طلب الصلاحية
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync({
+            ios: {
+                allowAlert: true,
+                allowBadge: true,
+                allowSound: true,
+                allowDisplayInCarPlay: false,
+                allowCriticalAlerts: false,
+                provideAppNotificationSettings: false,
+                allowProvisional: false,
+            },
+        });
+        finalStatus = status;
+    }
+
+    if (finalStatus !== 'granted') {
+        // المستخدم رفض - نُعلمه بكيفية التفعيل
+        Alert.alert(
+            'الإشعارات معطلة',
+            'لتلقي إشعارات التطبيق خارجياً، افتح إعدادات iPhone ثم اذهب إلى الإشعارات وفعّلها لتطبيق HR Pro.',
+            [{ text: 'حسناً' }]
+        );
+        return undefined;
+    }
+
+    // محاولة الحصول على Expo Push Token
+    try {
+        const projectId =
+            Constants?.expoConfig?.extra?.eas?.projectId ??
+            Constants?.easConfig?.projectId;
+
+        if (projectId && projectId !== '11111111-2222-3333-4444-555555555555') {
+            const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+            console.log('Expo Push Token:', tokenData.data);
+            return tokenData.data;
+        }
+    } catch (e: any) {
+        console.log('Expo Push Token not available:', e?.message);
+    }
+
+    return undefined;
 }
 
-/**
- * دالة حفظ توكن الإشعارات الخاص بالمستخدم في قاعدة البيانات (السيرفر)
- */
+// ── حفظ التوكن في السيرفر
 export const updatePushTokenOnServer = async (token: string, userId: string | number) => {
     try {
         if (!token) return;
-        // إرسال الـ Token الحقيقي إلى السيرفر الخاص بنا
         await api.put(`/api/users/${userId}/push-token`, { pushToken: token });
-        console.log(`تم الرفع بنجاح للسيرفر، Token: ${token}, User: ${userId}`);
+        console.log('Push token saved to server');
     } catch (error) {
-        console.error('Failed to save push token on server', error);
+        console.error('Failed to save push token:', error);
+    }
+};
+
+// ── إرسال إشعار محلي فوري (يظهر في قفل الشاشة ولوحة الإشعارات حتى لو التطبيق مغلق)
+// هذا هو الحل الأساسي: عند وصول بيانات من Socket/API نُطلق إشعاراً محلياً
+export const showLocalNotification = async (title: string, body: string, data?: any) => {
+    try {
+        const { status } = await Notifications.getPermissionsAsync();
+        if (status !== 'granted') return;
+
+        await Notifications.scheduleNotificationAsync({
+            content: {
+                title,
+                body,
+                data: data || {},
+                sound: 'default',
+                badge: 1,
+                // iOS specific
+                ...(Platform.OS === 'ios' && {
+                    interruptionLevel: 'active',
+                }),
+            },
+            trigger: null, // null = أرسل فوراً
+        });
+    } catch (e) {
+        console.error('showLocalNotification error:', e);
+    }
+};
+
+// ── مسح عدد الإشعارات (Badge) عند فتح التطبيق
+export const clearBadge = async () => {
+    try {
+        await Notifications.setBadgeCountAsync(0);
+    } catch (e) {
+        // ignore
     }
 };

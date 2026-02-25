@@ -33,6 +33,7 @@ import {
 import { COLORS, SPACING, BORDER_RADIUS } from '../constants/theme';
 import api from '../services/api';
 import { getSocket } from '../services/socket';
+import { showLocalNotification, clearBadge, registerForPushNotificationsAsync } from '../services/notifications';
 
 const DashboardScreen = ({ user, onLogout, navigation }: { user: any, onLogout: () => void, navigation: any }) => {
     const insets = useSafeAreaInsets();
@@ -82,14 +83,16 @@ const DashboardScreen = ({ user, onLogout, navigation }: { user: any, onLogout: 
     };
 
     useEffect(() => {
+        // طلب صلاحيات الإشعارات عند بدء التطبيق
+        registerForPushNotificationsAsync();
+
         fetchNotifications();
         fetchStats();
         const socket = getSocket();
         if (socket) {
             socket.on('new-notification', (notif: any) => {
-                // فلتر الإشعار قبل إضافته بناءً على دور المستخدم
-                const isAdminNotif = !notif.userId; // إشعار عام للمدراء
-                const isPersonalNotif = notif.userId === user?.id; // إشعار شخصي
+                const isAdminNotif = !notif.userId;
+                const isPersonalNotif = notif.userId === user?.id;
                 const userIsAdmin = Boolean(
                     user?.role === 'HR' || user?.role === 'MANAGER' ||
                     user?.role === 'DEPT_MGR' || user?.role === 'DEPARTMENT_MANAGER'
@@ -97,6 +100,12 @@ const DashboardScreen = ({ user, onLogout, navigation }: { user: any, onLogout: 
 
                 if (isPersonalNotif || (userIsAdmin && isAdminNotif)) {
                     setNotifications(prev => [notif, ...prev].slice(0, 50));
+                    // 🔔 إطلاق إشعار نظام iOS/Android يظهر خارج التطبيق
+                    showLocalNotification(
+                        notif.title || 'HR Pro',
+                        notif.message || notif.body || '',
+                        { id: notif.id }
+                    );
                 }
             });
             socket.on('data-update', () => {
@@ -151,7 +160,7 @@ const DashboardScreen = ({ user, onLogout, navigation }: { user: any, onLogout: 
                     <TouchableOpacity style={styles.iconButton} onPress={onLogout}>
                         <LogOut size={24} color={COLORS.danger} />
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.iconButton} onPress={() => setIsNotifVisible(true)}>
+                    <TouchableOpacity style={styles.iconButton} onPress={() => { setIsNotifVisible(true); clearBadge(); }}>
                         <Bell size={24} color={COLORS.text} />
                         {notifications.filter(n => !n.read).length > 0 && (
                             <View style={[styles.badge, { position: 'absolute', top: 2, right: 2, backgroundColor: COLORS.danger, width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' }]}>
